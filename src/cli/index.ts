@@ -5,6 +5,7 @@ import Table from 'cli-table3';
 import { RpcOptimizer } from '../core/optimizer';
 import { ChainType } from '../types';
 import { getSupportedChains } from '../chains/endpoints';
+import { fetchRpcsByChain } from '../chains/chainlist-fetcher';
 import { formatRecommendation } from '../core/recommender';
 
 const program = new Command();
@@ -175,6 +176,107 @@ program
       console.log();
     } catch (error) {
       spinner.fail('Failed to find best RPC');
+      console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Fetch RPCs dynamically from ChainList
+ */
+program
+  .command('fetch')
+  .description('Fetch latest RPC endpoints from ChainList')
+  .argument('<chain>', 'Blockchain network')
+  .option('--json', 'Output as JSON')
+  .action(async (chain: ChainType, options) => {
+    const spinner = ora(`Fetching RPCs for ${chain} from ChainList...`).start();
+
+    try {
+      const rpcs = await fetchRpcsByChain(chain);
+      spinner.stop();
+
+      if (rpcs.length === 0) {
+        console.log(chalk.yellow(`\nNo RPCs found for ${chain} (might not be on ChainList)\n`));
+        return;
+      }
+
+      if (options.json) {
+        console.log(JSON.stringify(rpcs, null, 2));
+        return;
+      }
+
+      console.log(chalk.bold(`\n📡 Found ${rpcs.length} RPCs for ${chain.toUpperCase()} from ChainList:\n`));
+
+      rpcs.forEach((rpc, i) => {
+        console.log(chalk.green(`  ${i + 1}. ${rpc.url}`));
+        console.log(chalk.gray(`     Provider: ${rpc.provider}`));
+      });
+      console.log();
+    } catch (error) {
+      spinner.fail('Failed to fetch RPCs');
+      console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Benchmark with dynamic RPCs
+ */
+program
+  .command('benchmark-live')
+  .description('Benchmark with fresh RPCs from ChainList')
+  .argument('<chain>', 'Blockchain network')
+  .option('-s, --samples <n>', 'Number of samples per endpoint', '3')
+  .option('--json', 'Output as JSON')
+  .action(async (chain: ChainType, options) => {
+    const spinner = ora(`Fetching and benchmarking ${chain} RPCs...`).start();
+
+    try {
+      const optimizer = new RpcOptimizer({ useDynamicFetch: true });
+      await optimizer.refreshEndpoints(chain);
+
+      spinner.text = `Benchmarking ${chain} RPCs...`;
+      const results = await optimizer.benchmarkChain(chain, {
+        samples: parseInt(options.samples),
+      });
+      spinner.stop();
+
+      if (options.json) {
+        console.log(JSON.stringify(results, null, 2));
+        return;
+      }
+
+      const table = new Table({
+        head: [
+          chalk.cyan('Provider'),
+          chalk.cyan('Score'),
+          chalk.cyan('Avg'),
+          chalk.cyan('Success'),
+          chalk.cyan('URL'),
+        ],
+        colWidths: [15, 10, 10, 10, 45],
+      });
+
+      results
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 15) // Top 15
+        .forEach(result => {
+          const scoreColor = result.score >= 80 ? chalk.green : result.score >= 60 ? chalk.yellow : chalk.red;
+          table.push([
+            result.endpoint.name.slice(0, 12),
+            scoreColor(`${result.score}/100`),
+            `${Math.round(result.avgLatencyMs)}ms`,
+            `${Math.round(result.successRate * 100)}%`,
+            result.endpoint.url.slice(0, 42),
+          ]);
+        });
+
+      console.log(chalk.bold(`\n${chain.toUpperCase()} Live Benchmark (${results.length} RPCs):\n`));
+      console.log(table.toString());
+      console.log();
+    } catch (error) {
+      spinner.fail('Live benchmark failed');
       console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
       process.exit(1);
     }

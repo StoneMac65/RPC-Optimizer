@@ -1,13 +1,14 @@
-import { 
-  RpcEndpoint, 
-  BenchmarkResult, 
-  BenchmarkOptions, 
-  RpcRecommendation, 
+import {
+  RpcEndpoint,
+  BenchmarkResult,
+  BenchmarkOptions,
+  RpcRecommendation,
   OptimizerConfig,
   ChainType,
-  HealthCheckResult 
+  HealthCheckResult
 } from '../types';
 import { PUBLIC_RPC_ENDPOINTS, getEndpointsByChain, getSupportedChains } from '../chains/endpoints';
+import { fetchRpcsByChain, fetchAllRpcs, clearChainListCache } from '../chains/chainlist-fetcher';
 import { checkHealth, checkHealthBatch } from './health-check';
 import { benchmarkEndpoint, benchmarkEndpoints } from './benchmark';
 import { recommendBestRpc, recommendAllChains } from './recommender';
@@ -20,6 +21,8 @@ export class RpcOptimizer {
   private config: OptimizerConfig;
   private cache: Map<string, { result: BenchmarkResult[]; timestamp: number }>;
   private endpoints: RpcEndpoint[];
+  private dynamicEndpoints: Map<ChainType, RpcEndpoint[]>;
+  private useDynamic: boolean;
 
   constructor(config: OptimizerConfig = {}) {
     this.config = {
@@ -27,6 +30,8 @@ export class RpcOptimizer {
       ...config,
     };
     this.cache = new Map();
+    this.dynamicEndpoints = new Map();
+    this.useDynamic = config.useDynamicFetch ?? false;
     this.endpoints = [
       ...PUBLIC_RPC_ENDPOINTS,
       ...(config.customEndpoints || []),
@@ -34,13 +39,67 @@ export class RpcOptimizer {
   }
 
   /**
-   * Get all available endpoints
+   * Enable or disable dynamic RPC fetching from ChainList
+   */
+  setDynamicFetch(enabled: boolean): void {
+    this.useDynamic = enabled;
+    if (!enabled) {
+      this.dynamicEndpoints.clear();
+    }
+  }
+
+  /**
+   * Fetch fresh RPCs from ChainList for a chain
+   */
+  async refreshEndpoints(chain: ChainType): Promise<RpcEndpoint[]> {
+    const dynamicRpcs = await fetchRpcsByChain(chain);
+    this.dynamicEndpoints.set(chain, dynamicRpcs);
+    return dynamicRpcs;
+  }
+
+  /**
+   * Fetch fresh RPCs for all chains from ChainList
+   */
+  async refreshAllEndpoints(): Promise<RpcEndpoint[]> {
+    const allRpcs = await fetchAllRpcs();
+    // Group by chain
+    const chains = [...new Set(allRpcs.map(r => r.chain))];
+    for (const chain of chains) {
+      this.dynamicEndpoints.set(chain, allRpcs.filter(r => r.chain === chain));
+    }
+    return allRpcs;
+  }
+
+  /**
+   * Get all available endpoints (static + dynamic)
    */
   getEndpoints(chain?: ChainType): RpcEndpoint[] {
-    if (chain) {
-      return this.endpoints.filter(e => e.chain === chain);
+    let endpoints = [...this.endpoints];
+
+    // Add dynamic endpoints if enabled
+    if (this.useDynamic) {
+      if (chain) {
+        const dynamic = this.dynamicEndpoints.get(chain) || [];
+        endpoints = [...endpoints, ...dynamic];
+      } else {
+        for (const [, rpcs] of this.dynamicEndpoints) {
+          endpoints = [...endpoints, ...rpcs];
+        }
+      }
     }
-    return this.endpoints;
+
+    // Deduplicate by URL
+    const seen = new Set<string>();
+    endpoints = endpoints.filter(e => {
+      if (seen.has(e.url)) return false;
+      seen.add(e.url);
+      return true;
+    });
+
+    if (chain) {
+      return endpoints.filter(e => e.chain === chain);
+    }
+    return endpoints;
   }
 
   /**

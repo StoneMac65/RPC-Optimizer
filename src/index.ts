@@ -12,13 +12,22 @@ export { checkHealth, checkHealthBatch } from './core/health-check';
 export { benchmarkEndpoint, benchmarkEndpoints } from './core/benchmark';
 export { recommendBestRpc, recommendAllChains, formatRecommendation } from './core/recommender';
 
-// Chain data
-export { 
-  PUBLIC_RPC_ENDPOINTS, 
-  getEndpointsByChain, 
+// Chain data (static)
+export {
+  PUBLIC_RPC_ENDPOINTS,
+  getEndpointsByChain,
   getSupportedChains,
-  CHAIN_IDS 
+  CHAIN_IDS
 } from './chains/endpoints';
+
+// Chain data (dynamic - fetches from ChainList)
+export {
+  fetchRpcsByChain,
+  fetchRpcsByChainId,
+  fetchAllRpcs,
+  fetchChainList,
+  clearChainListCache,
+} from './chains/chainlist-fetcher';
 
 // Types
 export type {

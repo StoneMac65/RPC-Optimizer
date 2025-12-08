@@ -88,5 +88,7 @@ export interface OptimizerConfig {
   defaultBenchmarkOptions?: BenchmarkOptions;
   /** Cache duration in ms */
   cacheDuration?: number;
+  /** Enable dynamic RPC fetching from ChainList (default: false) */
+  useDynamicFetch?: boolean;
 }
 
