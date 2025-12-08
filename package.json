@@ -1,0 +1,70 @@
+{
+  "name": "rpc-optimizer",
+  "version": "1.0.0",
+  "description": "Multi-platform RPC benchmarking tool for crypto wallets - find the fastest RPC endpoints",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "rpc-optimizer": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "cli": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StoneMac65/RPC-Optimizer.git"
+  },
+  "keywords": [
+    "rpc",
+    "ethereum",
+    "solana",
+    "polygon",
+    "blockchain",
+    "crypto",
+    "wallet",
+    "benchmark",
+    "latency",
+    "web3"
+  ],
+  "author": "StoneMac65",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/StoneMac65/RPC-Optimizer/issues"
+  },
+  "homepage": "https://github.com/StoneMac65/RPC-Optimizer#readme",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.4",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "cli-table3": "^0.6.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
