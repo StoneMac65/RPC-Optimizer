@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPC Optimizer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚡ RPC Optimizer</h1>
+      <p class="subtitle">Find the fastest RPC for your trades</p>
+    </header>
+
+    <div class="chain-selector">
+      <label for="chain">Select Network:</label>
+      <select id="chain">
+        <option value="ethereum">Ethereum</option>
+        <option value="polygon">Polygon</option>
+        <option value="bsc">BNB Smart Chain</option>
+        <option value="arbitrum">Arbitrum</option>
+        <option value="optimism">Optimism</option>
+        <option value="avalanche">Avalanche</option>
+        <option value="base">Base</option>
+        <option value="solana">Solana</option>
+      </select>
+    </div>
+
+    <div class="actions">
+      <button id="checkBtn" class="btn btn-primary">
+        🔍 Quick Check
+      </button>
+      <button id="benchmarkBtn" class="btn btn-secondary">
+        📊 Full Benchmark
+      </button>
+    </div>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Checking RPC endpoints...</p>
+    </div>
+
+    <div id="results" class="results hidden">
+      <h2>🏆 Best RPC</h2>
+      <div id="bestRpc" class="best-rpc"></div>
+      
+      <h3>Alternatives</h3>
+      <div id="alternatives" class="alternatives"></div>
+    </div>
+
+    <div id="error" class="error hidden">
+      <p id="errorMessage"></p>
+    </div>
+
+    <footer>
+      <a href="https://github.com/StoneMac65/RPC-Optimizer" target="_blank">
+        GitHub
+      </a>
+      <span>|</span>
+      <span>v1.0.0</span>
+    </footer>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
+
