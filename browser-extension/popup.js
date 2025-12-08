@@ -55,6 +55,32 @@ const CHAIN_ENDPOINTS = {
   ],
 };
 
+// Chain IDs for wallet integration
+const CHAIN_IDS = {
+  ethereum: 1,
+  polygon: 137,
+  bsc: 56,
+  arbitrum: 42161,
+  optimism: 10,
+  avalanche: 43114,
+  base: 8453,
+  solana: 0,
+};
+
+const CHAIN_METADATA = {
+  ethereum: { name: 'Ethereum', symbol: 'ETH', decimals: 18, explorer: 'https://etherscan.io' },
+  polygon: { name: 'Polygon', symbol: 'MATIC', decimals: 18, explorer: 'https://polygonscan.com' },
+  bsc: { name: 'BNB Smart Chain', symbol: 'BNB', decimals: 18, explorer: 'https://bscscan.com' },
+  arbitrum: { name: 'Arbitrum One', symbol: 'ETH', decimals: 18, explorer: 'https://arbiscan.io' },
+  optimism: { name: 'Optimism', symbol: 'ETH', decimals: 18, explorer: 'https://optimistic.etherscan.io' },
+  avalanche: { name: 'Avalanche C-Chain', symbol: 'AVAX', decimals: 18, explorer: 'https://snowtrace.io' },
+  base: { name: 'Base', symbol: 'ETH', decimals: 18, explorer: 'https://basescan.org' },
+};
+
+// Current best RPC (stored for wallet integration)
+let currentBestRpc = null;
+let currentChain = null;
+
 // DOM Elements
 const chainSelect = document.getElementById('chain');
 const checkBtn = document.getElementById('checkBtn');
@@ -65,6 +91,8 @@ const errorDiv = document.getElementById('error');
 const bestRpcDiv = document.getElementById('bestRpc');
 const alternativesDiv = document.getElementById('alternatives');
 const errorMessage = document.getElementById('errorMessage');
+const applyToWalletBtn = document.getElementById('applyToWalletBtn');
+const copyRpcBtn = document.getElementById('copyRpcBtn');
 
 /**
  * Check single RPC endpoint
@@ -129,7 +157,7 @@ async function runBenchmark(chain) {
 /**
  * Display results
  */
-function displayResults(results) {
+function displayResults(results, chain) {
   if (results.length === 0) {
     showError('No healthy RPC endpoints found');
     return;
@@ -138,6 +166,10 @@ function displayResults(results) {
   const best = results[0];
   const alts = results.slice(1, 4);
 
+  // Store for wallet integration
+  currentBestRpc = best;
+  currentChain = chain;
+
   bestRpcDiv.innerHTML = `
     <div class="provider">${best.name}</div>
     <div class="url">${best.url}</div>
@@ -145,9 +177,6 @@ function displayResults(results) {
       <div>Latency: <span>${Math.round(best.latency)}ms</span></div>
       <div>Block: <span>${best.blockHeight?.toLocaleString() || 'N/A'}</span></div>
     </div>
-    <button class="copy-btn" onclick="navigator.clipboard.writeText('${best.url}')">
-      📋 Copy URL
-    </button>
   `;
 
   alternativesDiv.innerHTML = alts.map(alt => `
@@ -175,13 +204,74 @@ function showLoading() {
   errorDiv.classList.add('hidden');
 }
 
+function showToast(message, type = 'success') {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+/**
+ * Add network to wallet using wallet_addEthereumChain
+ */
+async function addToWallet(rpc, chain) {
+  if (chain === 'solana') {
+    showToast('Solana not supported for MetaMask', 'error');
+    return;
+  }
+
+  if (typeof window.ethereum === 'undefined') {
+    showToast('No wallet detected. Install MetaMask!', 'error');
+    return;
+  }
+
+  const chainId = CHAIN_IDS[chain];
+  const meta = CHAIN_METADATA[chain];
+  const chainIdHex = '0x' + chainId.toString(16);
+
+  try {
+    // Try switching first
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chainIdHex }],
+    });
+    showToast(`Switched to ${meta.name}!`, 'success');
+  } catch (switchError) {
+    // Chain not added, add it
+    if (switchError.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [{
+            chainId: chainIdHex,
+            chainName: `${meta.name} (Optimized)`,
+            nativeCurrency: {
+              name: meta.symbol,
+              symbol: meta.symbol,
+              decimals: meta.decimals,
+            },
+            rpcUrls: [rpc.url],
+            blockExplorerUrls: [meta.explorer],
+          }],
+        });
+        showToast(`Added ${meta.name} with optimized RPC!`, 'success');
+      } catch (addError) {
+        showToast('Failed to add network: ' + addError.message, 'error');
+      }
+    } else {
+      showToast('Failed: ' + switchError.message, 'error');
+    }
+  }
+}
+
 // Event Listeners
 checkBtn.addEventListener('click', async () => {
   const chain = chainSelect.value;
   showLoading();
   try {
     const results = await runBenchmark(chain);
-    displayResults(results);
+    displayResults(results, chain);
   } catch (err) {
     showError(err.message);
   }
@@ -192,9 +282,22 @@ benchmarkBtn.addEventListener('click', async () => {
   showLoading();
   try {
     const results = await runBenchmark(chain);
-    displayResults(results);
+    displayResults(results, chain);
   } catch (err) {
     showError(err.message);
+  }
+});
+
+applyToWalletBtn.addEventListener('click', () => {
+  if (currentBestRpc && currentChain) {
+    addToWallet(currentBestRpc, currentChain);
+  }
+});
+
+copyRpcBtn.addEventListener('click', async () => {
+  if (currentBestRpc) {
+    await navigator.clipboard.writeText(currentBestRpc.url);
+    showToast('RPC URL copied to clipboard!');
   }
 });
 

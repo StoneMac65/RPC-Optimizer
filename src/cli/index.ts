@@ -4,9 +4,10 @@ import ora from 'ora';
 import Table from 'cli-table3';
 import { RpcOptimizer } from '../core/optimizer';
 import { ChainType } from '../types';
-import { getSupportedChains } from '../chains/endpoints';
+import { getSupportedChains, CHAIN_IDS } from '../chains/endpoints';
 import { fetchRpcsByChain } from '../chains/chainlist-fetcher';
 import { formatRecommendation } from '../core/recommender';
+import { generateNetworkConfig, generateTrustWalletLink } from '../wallet/integration';
 
 const program = new Command();
 
@@ -277,6 +278,63 @@ program
       console.log();
     } catch (error) {
       spinner.fail('Live benchmark failed');
+      console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
+      process.exit(1);
+    }
+  });
+
+/**
+ * Generate wallet config for best RPC
+ */
+program
+  .command('wallet-config')
+  .description('Generate wallet config for best RPC (for manual import)')
+  .argument('<chain>', 'Blockchain network')
+  .option('--trust', 'Generate Trust Wallet deep link')
+  .action(async (chain: ChainType, options) => {
+    const spinner = ora(`Finding best RPC for ${chain}...`).start();
+
+    try {
+      const optimizer = new RpcOptimizer();
+      const recommendation = await optimizer.getBestRpc(chain);
+      spinner.stop();
+
+      if (!recommendation) {
+        console.log(chalk.red('\nNo healthy RPC endpoints found.\n'));
+        process.exit(1);
+      }
+
+      const endpoint = recommendation.recommended.endpoint;
+
+      console.log(chalk.bold(`\n🔧 Wallet Config for ${chain.toUpperCase()}:\n`));
+
+      // Network config
+      const config = generateNetworkConfig(endpoint);
+      console.log(chalk.cyan('Network Config (JSON):'));
+      console.log(chalk.white(JSON.stringify(config, null, 2)));
+
+      // Trust Wallet link
+      if (options.trust || chain !== 'solana') {
+        const trustLink = generateTrustWalletLink(endpoint);
+        if (trustLink) {
+          console.log(chalk.cyan('\nTrust Wallet Deep Link:'));
+          console.log(chalk.green(trustLink));
+        }
+      }
+
+      // Manual instructions
+      console.log(chalk.cyan('\n📝 Manual Setup Instructions:'));
+      console.log(chalk.white(`
+  1. Open your wallet settings
+  2. Navigate to "Networks" or "RPC Settings"
+  3. Find ${chain.toUpperCase()} or add custom network
+  4. Replace RPC URL with: ${chalk.green(endpoint.url)}
+  5. Save and restart wallet
+      `));
+
+      console.log(chalk.yellow('💡 For MetaMask: Use our browser extension for one-click setup!\n'));
+    } catch (error) {
+      spinner.fail('Failed to generate config');
       console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
       process.exit(1);
     }

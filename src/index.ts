@@ -29,6 +29,19 @@ export {
   clearChainListCache,
 } from './chains/chainlist-fetcher';
 
+// Wallet integration
+export {
+  hasInjectedWallet,
+  getWalletProvider,
+  connectWallet,
+  addNetworkToWallet,
+  generateNetworkConfig,
+  generateTrustWalletLink,
+  generateRainbowLink,
+  copyToClipboard,
+  applyToWallet,
+} from './wallet/integration';
+
 // Types
 export type {
   ChainType,
