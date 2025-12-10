@@ -9,6 +9,7 @@ import {
 } from '../types';
 import { PUBLIC_RPC_ENDPOINTS, getEndpointsByChain, getSupportedChains } from '../chains/endpoints';
 import { fetchRpcsByChain, fetchAllRpcs, clearChainListCache } from '../chains/chainlist-fetcher';
+import { LLAMA_RPC_ENDPOINTS } from '../chains/defillama-fetcher';
 import { checkHealth, checkHealthBatch } from './health-check';
 import { benchmarkEndpoint, benchmarkEndpoints } from './benchmark';
 import { recommendBestRpc, recommendAllChains } from './recommender';
@@ -32,10 +33,19 @@ export class RpcOptimizer {
     this.cache = new Map();
     this.dynamicEndpoints = new Map();
     this.useDynamic = config.useDynamicFetch ?? false;
-    this.endpoints = [
+    // Combine static endpoints, DefiLlama endpoints, and any custom endpoints
+    // Deduplicate by URL
+    const allEndpoints = [
       ...PUBLIC_RPC_ENDPOINTS,
+      ...LLAMA_RPC_ENDPOINTS,
       ...(config.customEndpoints || []),
     ];
+    const seen = new Set<string>();
+    this.endpoints = allEndpoints.filter(ep => {
+      if (seen.has(ep.url)) return false;
+      seen.add(ep.url);
+      return true;
+    });
   }
 
   /**

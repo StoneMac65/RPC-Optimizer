@@ -6,6 +6,7 @@ import { RpcOptimizer } from '../core/optimizer';
 import { ChainType } from '../types';
 import { getSupportedChains, CHAIN_IDS } from '../chains/endpoints';
 import { fetchRpcsByChain } from '../chains/chainlist-fetcher';
+import { getDefiLlamaEndpointsByChain, PREMIUM_PROVIDERS } from '../chains/defillama-fetcher';
 import { formatRecommendation } from '../core/recommender';
 import { generateNetworkConfig, generateTrustWalletLink } from '../wallet/integration';
 
@@ -219,6 +220,54 @@ program
       console.error(chalk.red(error instanceof Error ? error.message : 'Unknown error'));
       process.exit(1);
     }
+  });
+
+/**
+ * List DefiLlama/LlamaNodes endpoints
+ */
+program
+  .command('defillama')
+  .description('List DefiLlama/LlamaNodes RPC endpoints')
+  .argument('[chain]', 'Blockchain network (optional)')
+  .action(async (chain?: ChainType) => {
+    console.log(chalk.bold('\n🦙 DefiLlama/LlamaNodes RPC Endpoints\n'));
+
+    // Show premium providers info
+    console.log(chalk.cyan('Premium Providers:'));
+    PREMIUM_PROVIDERS.forEach(p => {
+      console.log(chalk.white(`  • ${p.name}: ${chalk.gray(p.description)}`));
+    });
+    console.log();
+
+    if (chain) {
+      const rpcs = getDefiLlamaEndpointsByChain(chain);
+      if (rpcs.length === 0) {
+        console.log(chalk.yellow(`No DefiLlama endpoints found for ${chain}\n`));
+        return;
+      }
+      console.log(chalk.bold(`${chain.toUpperCase()} Endpoints:`));
+      rpcs.forEach(rpc => {
+        console.log(chalk.green(`  • ${rpc.name} (${rpc.provider})`));
+        console.log(chalk.gray(`    ${rpc.url}`));
+      });
+    } else {
+      // List all chains
+      const chains: ChainType[] = ['ethereum', 'polygon', 'bsc', 'arbitrum', 'optimism', 'avalanche', 'base', 'solana'];
+      chains.forEach(c => {
+        const rpcs = getDefiLlamaEndpointsByChain(c);
+        if (rpcs.length > 0) {
+          console.log(chalk.bold(`${c.toUpperCase()} (${rpcs.length} endpoints):`));
+          rpcs.slice(0, 3).forEach(rpc => {
+            console.log(chalk.green(`  • ${rpc.url}`));
+          });
+          if (rpcs.length > 3) {
+            console.log(chalk.gray(`  ... and ${rpcs.length - 3} more`));
+          }
+          console.log();
+        }
+      });
+    }
+    console.log(chalk.gray('Tip: Use "rpc-optimizer benchmark <chain>" to test these endpoints\n'));
   });
 
 /**

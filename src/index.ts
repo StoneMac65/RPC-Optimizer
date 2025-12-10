@@ -29,6 +29,15 @@ export {
   clearChainListCache,
 } from './chains/chainlist-fetcher';
 
+// DefiLlama/LlamaNodes RPC endpoints
+export {
+  LLAMA_RPC_ENDPOINTS,
+  getDefiLlamaEndpoints,
+  getDefiLlamaEndpointsByChain,
+  getDefiLlamaSupportedChains,
+  PREMIUM_PROVIDERS,
+} from './chains/defillama-fetcher';
+
 // Wallet integration
 export {
   hasInjectedWallet,
